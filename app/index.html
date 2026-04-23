@@ -1,0 +1,814 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>FuzzyMind — Soft Computing Sentiment Analyzer</title>
+<style>
+/* ── RESET & FONTS ─────────────────────────────────────────── */
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&family=JetBrains+Mono:wght@400;500&display=swap');
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+:root{
+  --bg:#0a0f1e;--surface:#111827;--card:#1a2235;--border:#1f2e45;
+  --accent:#38bdf8;--accent2:#818cf8;--green:#22c55e;--yellow:#facc15;
+  --red:#ef4444;--orange:#f97316;--muted:#64748b;--text:#f1f5f9;
+  --text2:#94a3b8;--radius:14px;
+}
+html{scroll-behavior:smooth}
+body{font-family:'Inter',sans-serif;background:var(--bg);color:var(--text);min-height:100vh;overflow-x:hidden}
+
+/* ── ANIMATED BG ────────────────────────────────────────────── */
+body::before{
+  content:'';position:fixed;inset:0;z-index:-1;
+  background:radial-gradient(ellipse 80% 60% at 20% 10%,rgba(56,189,248,.07),transparent),
+             radial-gradient(ellipse 60% 80% at 80% 80%,rgba(129,140,248,.06),transparent);
+  animation:bgShift 12s ease-in-out infinite alternate;
+}
+@keyframes bgShift{
+  0%{background-position:0% 0%,100% 100%}
+  100%{background-position:20% 20%,80% 80%}
+}
+
+/* ── GRID TEXTURE ───────────────────────────────────────────── */
+body::after{
+  content:'';position:fixed;inset:0;z-index:-1;
+  background-image:linear-gradient(rgba(255,255,255,.015) 1px,transparent 1px),
+                   linear-gradient(90deg,rgba(255,255,255,.015) 1px,transparent 1px);
+  background-size:60px 60px;
+}
+
+/* ── NAVBAR ─────────────────────────────────────────────────── */
+nav{
+  position:sticky;top:0;z-index:100;
+  background:rgba(10,15,30,.85);backdrop-filter:blur(20px);
+  border-bottom:1px solid var(--border);
+  display:flex;align-items:center;justify-content:space-between;
+  padding:.9rem 2.5rem;
+}
+.nav-brand{font-size:1.2rem;font-weight:800;letter-spacing:-.02em}
+.nav-brand span{color:var(--accent)}
+.nav-pills{display:flex;gap:.5rem}
+.nav-pill{
+  padding:.35rem .9rem;border-radius:999px;
+  font-size:.78rem;font-weight:600;cursor:pointer;
+  border:1px solid transparent;color:var(--text2);
+  transition:all .2s;background:none;
+}
+.nav-pill:hover,.nav-pill.active{
+  background:rgba(56,189,248,.1);border-color:var(--accent);color:var(--accent)
+}
+.nav-badge{
+  font-size:.72rem;font-weight:700;padding:.2rem .6rem;
+  border-radius:999px;background:rgba(34,197,94,.15);color:var(--green);
+  border:1px solid rgba(34,197,94,.3);
+}
+
+/* ── HERO ────────────────────────────────────────────────────── */
+.hero{
+  text-align:center;padding:5rem 2rem 3.5rem;
+  position:relative;overflow:hidden;
+}
+.hero-glow{
+  position:absolute;top:-100px;left:50%;transform:translateX(-50%);
+  width:600px;height:300px;
+  background:radial-gradient(ellipse,rgba(56,189,248,.12),transparent 70%);
+  pointer-events:none;
+}
+.hero-eyebrow{
+  display:inline-flex;align-items:center;gap:.5rem;
+  background:rgba(56,189,248,.08);border:1px solid rgba(56,189,248,.2);
+  border-radius:999px;padding:.3rem 1rem;
+  font-size:.75rem;font-weight:600;color:var(--accent);
+  letter-spacing:.06em;text-transform:uppercase;margin-bottom:1.5rem;
+}
+.hero-eyebrow span{width:6px;height:6px;background:var(--accent);border-radius:50%;animation:blink 1.4s ease-in-out infinite}
+@keyframes blink{0%,100%{opacity:1}50%{opacity:.3}}
+h1.hero-title{
+  font-size:clamp(2.4rem,6vw,4.2rem);font-weight:900;letter-spacing:-.04em;
+  line-height:1.1;margin-bottom:1.2rem;
+}
+h1.hero-title .hi{
+  background:linear-gradient(135deg,var(--accent),var(--accent2));
+  -webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text;
+}
+.hero-sub{font-size:1rem;color:var(--text2);max-width:520px;margin:0 auto 2.5rem;line-height:1.7}
+.hero-pills{display:flex;flex-wrap:wrap;gap:.5rem;justify-content:center;margin-bottom:3rem}
+.tech-pill{
+  padding:.3rem .9rem;border-radius:6px;font-size:.72rem;font-weight:600;
+  border:1px solid;letter-spacing:.04em;
+}
+
+/* ── STATS ROW ───────────────────────────────────────────────── */
+.stats-row{
+  display:grid;grid-template-columns:repeat(4,1fr);gap:1rem;
+  max-width:860px;margin:0 auto 4rem;padding:0 1rem;
+}
+.stat-card{
+  background:var(--card);border:1px solid var(--border);border-radius:var(--radius);
+  padding:1.2rem;text-align:center;position:relative;overflow:hidden;
+}
+.stat-card::before{
+  content:'';position:absolute;top:0;left:0;right:0;height:2px;
+  background:linear-gradient(90deg,var(--accent),var(--accent2));
+}
+.stat-num{font-size:1.8rem;font-weight:800;color:var(--text);font-family:'JetBrains Mono',monospace}
+.stat-lbl{font-size:.72rem;color:var(--muted);margin-top:.3rem;letter-spacing:.04em;text-transform:uppercase}
+
+/* ── MAIN LAYOUT ─────────────────────────────────────────────── */
+.main{max-width:1200px;margin:0 auto;padding:0 1.5rem 4rem}
+.grid-2{display:grid;grid-template-columns:1fr 1fr;gap:1.5rem}
+@media(max-width:768px){.grid-2{grid-template-columns:1fr}.stats-row{grid-template-columns:repeat(2,1fr)}}
+
+/* ── CARDS ───────────────────────────────────────────────────── */
+.card{
+  background:var(--card);border:1px solid var(--border);
+  border-radius:var(--radius);padding:1.6rem;position:relative;overflow:hidden;
+}
+.card-accent{border-top:2px solid var(--accent)}
+.card-title{
+  font-size:.7rem;font-weight:700;letter-spacing:.08em;
+  text-transform:uppercase;color:var(--muted);margin-bottom:.8rem;
+}
+.section-title{
+  font-size:1.5rem;font-weight:800;letter-spacing:-.03em;color:var(--text);margin-bottom:.4rem;
+}
+.section-sub{font-size:.88rem;color:var(--text2);margin-bottom:1.8rem}
+
+/* ── INPUT AREA ──────────────────────────────────────────────── */
+textarea{
+  width:100%;background:#0a0f1e;border:1px solid var(--border);
+  border-radius:10px;color:var(--text);font-size:.92rem;
+  padding:.9rem 1rem;resize:vertical;min-height:130px;
+  font-family:'Inter',sans-serif;line-height:1.6;transition:border-color .2s;
+}
+textarea:focus{outline:none;border-color:var(--accent);box-shadow:0 0 0 3px rgba(56,189,248,.1)}
+textarea::placeholder{color:var(--muted)}
+
+/* ── BUTTON ──────────────────────────────────────────────────── */
+.btn{
+  width:100%;padding:.75rem 1.5rem;border:none;border-radius:10px;cursor:pointer;
+  font-weight:700;font-size:.95rem;font-family:'Inter',sans-serif;
+  transition:all .2s;position:relative;overflow:hidden;
+}
+.btn-primary{
+  background:linear-gradient(135deg,#3b82f6,#6366f1);color:white;
+  box-shadow:0 4px 20px rgba(99,102,241,.3);
+}
+.btn-primary:hover{transform:translateY(-2px);box-shadow:0 8px 28px rgba(99,102,241,.4)}
+.btn-primary:active{transform:translateY(0)}
+.btn-primary.loading{opacity:.7;cursor:not-allowed}
+
+/* ── SAMPLE CHIPS ────────────────────────────────────────────── */
+.sample-chips{display:flex;flex-wrap:wrap;gap:.4rem;margin-top:.8rem}
+.chip{
+  padding:.35rem .85rem;border-radius:999px;font-size:.74rem;font-weight:600;
+  cursor:pointer;border:1px solid var(--border);background:var(--surface);color:var(--text2);
+  transition:all .15s;white-space:nowrap;
+}
+.chip:hover{border-color:var(--accent);color:var(--accent);background:rgba(56,189,248,.08)}
+
+/* ── SCORE DISPLAY ───────────────────────────────────────────── */
+#result-panel{min-height:300px;display:flex;flex-direction:column;gap:1rem}
+.result-hidden{display:none}
+
+.score-ring-wrap{text-align:center;padding:1.5rem 0}
+.score-big{
+  font-size:5rem;font-weight:900;font-family:'JetBrains Mono',monospace;
+  line-height:1;letter-spacing:-.04em;
+  transition:color .4s;
+}
+.score-label{
+  display:inline-flex;align-items:center;gap:.5rem;
+  padding:.5rem 1.2rem;border-radius:999px;
+  font-size:1rem;font-weight:700;margin-top:.8rem;
+}
+.score-emoji{font-size:1.8rem;margin-right:.3rem}
+
+/* ── SCORE BAR ───────────────────────────────────────────────── */
+.score-bar-wrap{position:relative;height:16px;background:#0a0f1e;border-radius:999px;overflow:visible;margin:.8rem 0}
+.score-bar-fill{height:100%;border-radius:999px;transition:width .6s cubic-bezier(.34,1.56,.64,1)}
+.score-markers{display:flex;justify-content:space-between;font-size:.65rem;color:var(--muted);margin-top:.25rem}
+
+/* ── INPUT FEATURES ──────────────────────────────────────────── */
+.feat-row{display:grid;grid-template-columns:repeat(3,1fr);gap:.8rem;margin-top.8rem}
+.feat-card{
+  background:#0a0f1e;border:1px solid var(--border);border-radius:10px;
+  padding:.9rem;text-align:center;
+}
+.feat-val{font-size:1.6rem;font-weight:800;font-family:'JetBrains Mono',monospace}
+.feat-lbl{font-size:.68rem;color:var(--muted);margin-top:.2rem;text-transform:uppercase;letter-spacing:.06em}
+.feat-bar-bg{background:var(--bg);border-radius:999px;height:5px;margin-top:.5rem;overflow:hidden}
+.feat-bar-fill{height:100%;border-radius:999px;transition:width .5s ease}
+
+/* ── MEMBERSHIP ──────────────────────────────────────────────── */
+.mem-row{margin:4px 0}
+.mem-header{display:flex;justify-content:space-between;font-size:.78rem;color:var(--text2);margin-bottom:3px}
+.mem-bar-bg{background:#0a0f1e;border-radius:999px;height:8px;overflow:hidden}
+.mem-bar{height:100%;border-radius:999px;transition:width .5s ease}
+
+/* ── PIPELINE VIZ ────────────────────────────────────────────── */
+.pipeline{display:flex;flex-wrap:wrap;gap:.5rem;align-items:center;justify-content:center;padding:1.2rem 0}
+.pipe-node{
+  background:var(--surface);border:1px solid var(--border);
+  border-radius:8px;padding:.5rem 1rem;font-size:.78rem;color:var(--text2);
+  white-space:nowrap;transition:border-color .3s;
+}
+.pipe-node.active{border-color:var(--accent);color:var(--accent);background:rgba(56,189,248,.08)}
+.pipe-arrow{color:var(--accent);font-size:1.1rem}
+
+/* ── RULES TABLE ─────────────────────────────────────────────── */
+.rules-list{display:flex;flex-direction:column;gap:4px}
+.rule-item{
+  background:#0a0f1e;border:1px solid var(--border);border-radius:8px;
+  padding:.45rem .9rem;font-family:'JetBrains Mono',monospace;font-size:.75rem;
+  color:var(--text2);display:flex;gap:.5rem;align-items:center;
+}
+.rule-id{color:var(--accent);font-weight:700;min-width:28px}
+.rule-then{font-weight:700}
+
+/* ── ACCURACY BARS ───────────────────────────────────────────── */
+.acc-bar-wrap{margin:6px 0}
+.acc-bar-top{display:flex;justify-content:space-between;font-size:.78rem;color:var(--text2);margin-bottom:4px}
+.acc-bar-bg{background:#0a0f1e;border-radius:999px;height:10px;overflow:hidden}
+.acc-bar-fill{height:100%;border-radius:999px}
+
+/* ── MF CHART ────────────────────────────────────────────────── */
+canvas{border-radius:10px;width:100%!important}
+
+/* ── TOAST ───────────────────────────────────────────────────── */
+#toast{
+  position:fixed;bottom:1.5rem;right:1.5rem;z-index:999;
+  background:var(--card);border:1px solid var(--border);
+  border-radius:10px;padding:.8rem 1.2rem;font-size:.85rem;
+  transform:translateX(200%);transition:transform .3s ease;
+  box-shadow:0 10px 40px rgba(0,0,0,.4);
+}
+#toast.show{transform:translateX(0)}
+
+/* ── TABS ────────────────────────────────────────────────────── */
+.tab-row{display:flex;gap:.3rem;border-bottom:1px solid var(--border);margin-bottom:1.5rem;flex-wrap:wrap}
+.tab{
+  padding:.6rem 1.1rem;font-size:.82rem;font-weight:600;cursor:pointer;
+  color:var(--text2);border-bottom:2px solid transparent;margin-bottom:-1px;transition:all .15s;
+}
+.tab:hover{color:var(--text)}
+.tab.active{color:var(--accent);border-color:var(--accent)}
+.tab-pane{display:none}
+.tab-pane.active{display:block}
+
+/* ── SECTION SPACING ─────────────────────────────────────────── */
+.section{margin-bottom:3.5rem}
+.label-row{display:flex;justify-content:space-between;align-items:center;margin-bottom:1rem}
+</style>
+</head>
+<body>
+
+<!-- NAVBAR -->
+<nav>
+  <div class="nav-brand">🧠 <span>Fuzzy</span>Mind</div>
+  <div class="nav-pills">
+    <button class="nav-pill active" onclick="scrollTo(0,0)">Analyze</button>
+    <button class="nav-pill" onclick="document.getElementById('fis-sec').scrollIntoView({behavior:'smooth'})">FIS</button>
+    <button class="nav-pill" onclick="document.getElementById('mf-sec').scrollIntoView({behavior:'smooth'})">MF Plots</button>
+    <button class="nav-pill" onclick="document.getElementById('about-sec').scrollIntoView({behavior:'smooth'})">About</button>
+  </div>
+  <div class="nav-badge">Soft Computing Project</div>
+</nav>
+
+<!-- HERO -->
+<section class="hero">
+  <div class="hero-glow"></div>
+  <div class="hero-eyebrow"><span></span>Fuzzy Logic · Mamdani FIS · Amazon Reviews</div>
+  <h1 class="hero-title">
+    Sentiment Analysis<br>with <span class="hi">Fuzzy Logic</span>
+  </h1>
+  <p class="hero-sub">
+    A Soft Computing approach using Fuzzy Sets, Mamdani Fuzzy Inference System,
+    and Linguistic Variables — applied to 34,660 Amazon product reviews.
+  </p>
+  <div class="hero-pills">
+    <span class="tech-pill" style="color:#38bdf8;border-color:rgba(56,189,248,.3);">Fuzzy Sets</span>
+    <span class="tech-pill" style="color:#818cf8;border-color:rgba(129,140,248,.3);">Mamdani FIS</span>
+    <span class="tech-pill" style="color:#22c55e;border-color:rgba(34,197,94,.3);">Triangular MFs</span>
+    <span class="tech-pill" style="color:#facc15;border-color:rgba(250,204,21,.3);">Centroid Defuzzification</span>
+    <span class="tech-pill" style="color:#f97316;border-color:rgba(249,115,22,.3);">15 Fuzzy Rules</span>
+    <span class="tech-pill" style="color:#e879f9;border-color:rgba(232,121,249,.3);">34,660 Reviews</span>
+  </div>
+</section>
+
+<!-- STATS -->
+<div class="stats-row">
+  <div class="stat-card"><div class="stat-num">34,660</div><div class="stat-lbl">Amazon Reviews</div></div>
+  <div class="stat-card"><div class="stat-num">15</div><div class="stat-lbl">Fuzzy Rules</div></div>
+  <div class="stat-card"><div class="stat-num">3</div><div class="stat-lbl">Input Variables</div></div>
+  <div class="stat-card"><div class="stat-num">5</div><div class="stat-lbl">Sentiment Levels</div></div>
+</div>
+
+<!-- MAIN CONTENT -->
+<div class="main">
+
+  <!-- ═══ ANALYSIS SECTION ═══ -->
+  <section class="section">
+    <div class="label-row">
+      <div>
+        <div class="section-title">🔍 Fuzzy Sentiment Analyzer</div>
+        <div class="section-sub">Enter any Amazon-style review text and the Mamdani FIS will compute the sentiment</div>
+      </div>
+    </div>
+
+    <div class="grid-2">
+      <!-- LEFT: INPUT -->
+      <div class="card card-accent">
+        <div class="card-title">Input Review Text</div>
+        <textarea id="reviewInput" placeholder="Enter an Amazon product review here...">This Amazon Fire tablet is absolutely fantastic! Super easy to use, great screen quality and amazing battery life. My kids love it so much!</textarea>
+        <div class="sample-chips">
+          <div class="chip" onclick="setSample(0)">😄 Very Positive</div>
+          <div class="chip" onclick="setSample(1)">🙂 Positive</div>
+          <div class="chip" onclick="setSample(2)">😐 Neutral</div>
+          <div class="chip" onclick="setSample(3)">😟 Negative</div>
+          <div class="chip" onclick="setSample(4)">😠 Very Negative</div>
+        </div>
+        <br>
+        <button class="btn btn-primary" onclick="analyzeText()" id="analyzeBtn">
+          ⚡ Run Fuzzy Inference
+        </button>
+        <div style="margin-top:1.2rem;">
+          <div class="card-title">FIS Pipeline Status</div>
+          <div class="pipeline" id="pipeline">
+            <div class="pipe-node" id="p0">📝 Text</div>
+            <div class="pipe-arrow">→</div>
+            <div class="pipe-node" id="p1">🔤 Features</div>
+            <div class="pipe-arrow">→</div>
+            <div class="pipe-node" id="p2">📐 Fuzzify</div>
+            <div class="pipe-arrow">→</div>
+            <div class="pipe-node" id="p3">📋 Rules</div>
+            <div class="pipe-arrow">→</div>
+            <div class="pipe-node" id="p4">🔗 Aggregate</div>
+            <div class="pipe-arrow">→</div>
+            <div class="pipe-node" id="p5">📍 Defuzzify</div>
+            <div class="pipe-arrow">→</div>
+            <div class="pipe-node" id="p6">✅ Sentiment</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- RIGHT: RESULT -->
+      <div class="card" id="result-panel">
+        <div class="card-title">Fuzzy Analysis Result</div>
+        <div id="result-empty" style="display:flex;align-items:center;justify-content:center;height:200px;color:var(--muted);font-size:.9rem;">
+          ← Enter text and click Analyze
+        </div>
+        <div id="result-content" style="display:none;">
+          <!-- Score Ring -->
+          <div class="score-ring-wrap">
+            <div class="score-big" id="scoreNum">—</div>
+            <div><span class="score-emoji" id="scoreEmoji"></span><span class="score-label" id="scoreLabel"></span></div>
+          </div>
+          <!-- Bar -->
+          <div class="score-bar-wrap">
+            <div class="score-bar-fill" id="scoreBar" style="width:0%;background:#38bdf8;height:100%;border-radius:999px;"></div>
+            <div style="position:absolute;top:0;left:0;right:0;bottom:0;border-radius:999px;background:linear-gradient(90deg,#ef4444 0%,#f97316 25%,#facc15 45%,#86efac 65%,#22c55e 100%);opacity:0.25;pointer-events:none;"></div>
+            <div class="score-markers"><span>0 — V.Neg</span><span>20</span><span>40</span><span>60</span><span>80</span><span>100</span></div>
+          </div>
+          <!-- Input Features -->
+          <div class="feat-row" id="featRow"></div>
+          <!-- Membership Degrees -->
+          <div style="margin-top:1rem;">
+            <div class="card-title">Output Membership Degrees</div>
+            <div id="memberships"></div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ═══ FIS SECTION ═══ -->
+  <section class="section" id="fis-sec">
+    <div class="label-row">
+      <div>
+        <div class="section-title">📐 Fuzzy Inference System</div>
+        <div class="section-sub">Mamdani FIS specification — variables, membership functions, and rules</div>
+      </div>
+    </div>
+
+    <div class="grid-2" style="gap:1.5rem;">
+      <!-- Variables -->
+      <div class="card">
+        <div class="card-title">Linguistic Variables & MFs</div>
+        <div style="display:flex;flex-direction:column;gap:.8rem;">
+          <div style="background:#0a0f1e;border:1px solid var(--border);border-radius:10px;padding:1rem;">
+            <div style="font-size:.8rem;font-weight:700;color:var(--accent);margin-bottom:.6rem;">Input Variables (Antecedents) — Universe [0, 10]</div>
+            <div style="font-size:.82rem;color:var(--text2);line-height:2;">
+              <strong style="color:var(--text);">positive_score</strong> → {<span style="color:#4ade80">low</span>, <span style="color:#facc15">medium</span>, <span style="color:#22c55e">high</span>}<br>
+              <strong style="color:var(--text);">negative_score</strong> → {<span style="color:#f87171">low</span>, <span style="color:#fb923c">medium</span>, <span style="color:#ef4444">high</span>}<br>
+              <strong style="color:var(--text);">punctuation_score</strong> → {<span style="color:#94a3b8">low</span>, <span style="color:#facc15">high</span>}
+            </div>
+          </div>
+          <div style="background:#0a0f1e;border:1px solid var(--border);border-radius:10px;padding:1rem;">
+            <div style="font-size:.8rem;font-weight:700;color:var(--accent2);margin-bottom:.6rem;">Output Variable (Consequent) — Universe [0, 100]</div>
+            <div style="font-size:.82rem;color:var(--text2);line-height:2;">
+              <strong style="color:var(--text);">sentiment</strong> → {
+              <span style="color:#ef4444">very_negative</span>,
+              <span style="color:#f97316">negative</span>,
+              <span style="color:#facc15">neutral</span>,
+              <span style="color:#86efac">positive</span>,
+              <span style="color:#22c55e">very_positive</span>}
+            </div>
+          </div>
+          <div style="background:#0a0f1e;border:1px solid var(--border);border-radius:10px;padding:1rem;">
+            <div style="font-size:.8rem;font-weight:700;color:#facc15;margin-bottom:.6rem;">Triangular MF Formula</div>
+            <code style="font-size:.82rem;color:#86efac;font-family:'JetBrains Mono',monospace;">
+              trimf(x, [a, b, c])<br>
+              μ(x) = 0 if x ≤ a or x ≥ c<br>
+              μ(x) = (x-a)/(b-a) if a &lt; x ≤ b<br>
+              μ(x) = (c-x)/(c-b) if b &lt; x &lt; c
+            </code>
+          </div>
+        </div>
+      </div>
+
+      <!-- Rules -->
+      <div class="card">
+        <div class="card-title">Knowledge Base — 15 IF-THEN Rules</div>
+        <div class="rules-list">
+          <div class="rule-item"><span class="rule-id">R1</span><span>pos=HIGH & neg=LOW</span><span class="rule-then" style="color:#22c55e">→ VERY POS</span></div>
+          <div class="rule-item"><span class="rule-id">R2</span><span>pos=HIGH & neg=LOW & punct=HIGH</span><span class="rule-then" style="color:#22c55e">→ VERY POS</span></div>
+          <div class="rule-item"><span class="rule-id">R3</span><span>pos=HIGH & neg=MED</span><span class="rule-then" style="color:#86efac">→ POS</span></div>
+          <div class="rule-item"><span class="rule-id">R4</span><span>pos=MED & neg=LOW</span><span class="rule-then" style="color:#86efac">→ POS</span></div>
+          <div class="rule-item"><span class="rule-id">R5</span><span>pos=MED & neg=LOW & punct=HIGH</span><span class="rule-then" style="color:#86efac">→ POS</span></div>
+          <div class="rule-item"><span class="rule-id">R6</span><span>pos=MED & neg=MED</span><span class="rule-then" style="color:#facc15">→ NEUTRAL</span></div>
+          <div class="rule-item"><span class="rule-id">R7</span><span>pos=LOW & neg=LOW</span><span class="rule-then" style="color:#facc15">→ NEUTRAL</span></div>
+          <div class="rule-item"><span class="rule-id">R8</span><span>pos=LOW & neg=LOW & punct=LOW</span><span class="rule-then" style="color:#facc15">→ NEUTRAL</span></div>
+          <div class="rule-item"><span class="rule-id">R9</span><span>neg=HIGH & pos=LOW</span><span class="rule-then" style="color:#ef4444">→ VERY NEG</span></div>
+          <div class="rule-item"><span class="rule-id">R10</span><span>neg=HIGH & pos=MED</span><span class="rule-then" style="color:#f97316">→ NEG</span></div>
+          <div class="rule-item"><span class="rule-id">R11</span><span>neg=MED & pos=LOW</span><span class="rule-then" style="color:#f97316">→ NEG</span></div>
+          <div class="rule-item"><span class="rule-id">R12</span><span>neg=HIGH & punct=HIGH</span><span class="rule-then" style="color:#ef4444">→ VERY NEG</span></div>
+          <div class="rule-item"><span class="rule-id">R13</span><span>pos=HIGH & neg=HIGH</span><span class="rule-then" style="color:#facc15">→ NEUTRAL</span></div>
+          <div class="rule-item"><span class="rule-id">R14</span><span>pos=LOW & neg=MED</span><span class="rule-then" style="color:#f97316">→ NEG</span></div>
+          <div class="rule-item"><span class="rule-id">R15</span><span>pos=MED & neg=HIGH</span><span class="rule-then" style="color:#f97316">→ NEG</span></div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ═══ MF CHARTS ═══ -->
+  <section class="section" id="mf-sec">
+    <div class="label-row">
+      <div>
+        <div class="section-title">📊 Membership Function Plots</div>
+        <div class="section-sub">Visualizing fuzzy sets on their Universe of Discourse</div>
+      </div>
+    </div>
+    <div class="grid-2" style="gap:1.2rem;">
+      <div class="card"><div class="card-title">Input: Positive Score</div><canvas id="mfPos" height="140"></canvas></div>
+      <div class="card"><div class="card-title">Input: Negative Score</div><canvas id="mfNeg" height="140"></canvas></div>
+      <div class="card"><div class="card-title">Input: Punctuation Score</div><canvas id="mfPunct" height="140"></canvas></div>
+      <div class="card"><div class="card-title">Output: Sentiment Score</div><canvas id="mfSent" height="140"></canvas></div>
+    </div>
+  </section>
+
+  <!-- ═══ DATASET STATS ═══ -->
+  <section class="section" id="about-sec">
+    <div class="label-row">
+      <div>
+        <div class="section-title">📦 Dataset Overview</div>
+        <div class="section-sub">Amazon Product Reviews — 1429_1.csv</div>
+      </div>
+    </div>
+    <div class="grid-2">
+      <div class="card">
+        <div class="card-title">Dataset Statistics</div>
+        <div style="display:flex;flex-direction:column;gap:.5rem;font-size:.88rem;color:var(--text2);">
+          <div style="display:flex;justify-content:space-between;padding:.6rem;background:#0a0f1e;border-radius:8px;">
+            <span>Total Reviews</span><span style="color:var(--text);font-weight:700;">34,660</span>
+          </div>
+          <div style="display:flex;justify-content:space-between;padding:.6rem;background:#0a0f1e;border-radius:8px;">
+            <span>Unique Products</span><span style="color:var(--text);font-weight:700;">48</span>
+          </div>
+          <div style="display:flex;justify-content:space-between;padding:.6rem;background:#0a0f1e;border-radius:8px;">
+            <span>5★ Reviews</span><span style="color:#22c55e;font-weight:700;">23,775 (68.6%)</span>
+          </div>
+          <div style="display:flex;justify-content:space-between;padding:.6rem;background:#0a0f1e;border-radius:8px;">
+            <span>4★ Reviews</span><span style="color:#86efac;font-weight:700;">8,541 (24.6%)</span>
+          </div>
+          <div style="display:flex;justify-content:space-between;padding:.6rem;background:#0a0f1e;border-radius:8px;">
+            <span>3★ Reviews</span><span style="color:#facc15;font-weight:700;">1,499 (4.3%)</span>
+          </div>
+          <div style="display:flex;justify-content:space-between;padding:.6rem;background:#0a0f1e;border-radius:8px;">
+            <span>1-2★ Reviews</span><span style="color:#ef4444;font-weight:700;">812 (2.3%)</span>
+          </div>
+          <div style="display:flex;justify-content:space-between;padding:.6rem;background:#0a0f1e;border-radius:8px;">
+            <span>Brand</span><span style="color:var(--accent);font-weight:700;">Amazon</span>
+          </div>
+        </div>
+      </div>
+      <div class="card">
+        <div class="card-title">Soft Computing Summary</div>
+        <div style="font-size:.88rem;color:var(--text2);line-height:1.9;">
+          <p style="margin-bottom:.8rem;"><strong style="color:var(--text);">What is Soft Computing?</strong><br>
+          Soft Computing handles <em>uncertainty</em> and <em>vagueness</em> that crisp/classical systems can't. It includes Fuzzy Logic, Neural Networks, and Evolutionary Computation.</p>
+          <p style="margin-bottom:.8rem;"><strong style="color:var(--text);">Why Fuzzy Logic for Sentiment?</strong><br>
+          Human language is inherently fuzzy — "pretty good" sits between positive and neutral. Fuzzy sets naturally model this <em>partial membership</em>.</p>
+          <p><strong style="color:var(--text);">Key Advantages:</strong><br>
+          ✅ No training data needed<br>
+          ✅ Human-readable rules<br>
+          ✅ Handles uncertainty naturally<br>
+          ✅ Interpretable decisions<br>
+          ✅ Robust to noisy input</p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+</div><!-- /main -->
+
+<!-- TOAST -->
+<div id="toast">✅ Analysis complete!</div>
+
+<!-- FOOTER -->
+<footer style="text-align:center;padding:2rem;color:var(--muted);font-size:.8rem;border-top:1px solid var(--border);">
+  🧠 FuzzyMind — Soft Computing Project &nbsp;|&nbsp; Mamdani FIS · Triangular MFs · Centroid Defuzz · Amazon Reviews
+</footer>
+
+<script>
+// ── SAMPLE TEXTS ──────────────────────────────────────────────
+const SAMPLES = [
+  "This Amazon Fire tablet is absolutely fantastic! Love the quality, amazing display and super fast. Best purchase ever!!!",
+  "Really good tablet for the price. Easy to set up, nice screen and works well for basic tasks.",
+  "It is a decent tablet, nothing special. Average performance and standard quality for the price.",
+  "Disappointing product. Slow performance, annoying ads and poor battery life. Not happy with this purchase.",
+  "Terrible! Broken on arrival, horrible quality and disgusting customer service. Complete waste of money!!!",
+];
+function setSample(i){ document.getElementById('reviewInput').value=SAMPLES[i]; }
+
+// ── FUZZY ENGINE (client-side implementation) ─────────────────
+const POSITIVE = new Set(['good','great','excellent','amazing','wonderful','fantastic','love','happy','best','awesome','beautiful','nice','perfect','brilliant','outstanding','superb','terrific','pleasant','enjoy','enjoyed','positive','helpful','recommend','glad','delighted','impressive','marvelous','fabulous','splendid','magnificent','joyful','cheerful','pleased','satisfied','thrilled','excited','fun','incredible','smooth','clean','powerful','elegant','efficient','easy','fast','friendly','kind','light','quality','crisp','clear','bright','solid','durable','affordable','value','worth','quick']);
+const NEGATIVE = new Set(['bad','terrible','awful','horrible','worst','hate','ugly','disgusting','disappointing','poor','boring','annoying','frustrating','useless','waste','broken','slow','difficult','complicated','confusing','painful','dreadful','lousy','inferior','mediocre','failure','failed','problem','issue','wrong','defective','unreliable','dangerous','harmful','toxic','rude','harsh','angry','sad','miserable','upset','bitter','cheap','fragile','ads']);
+const INTENSIFIERS = new Set(['very','extremely','absolutely','incredibly','really','so','much','highly','totally','deeply','super','truly','quite','pretty']);
+const NEGATORS = new Set(['not','never','no','dont',"don't","doesn't","doesnt",'hardly','barely']);
+
+function extractFeatures(text){
+  const clean = text.toLowerCase().replace(/[^a-zA-Z\s'!?]/g,' ');
+  const words = clean.split(/\s+/).filter(w=>w.length>0);
+  const total = Math.max(words.length, 1);
+  let pos=0, neg=0, negActive=false, negWindow=0;
+  words.forEach((w,i)=>{
+    if(NEGATORS.has(w)){ negActive=true; negWindow=3; }
+    else{ negWindow--; if(negWindow<=0) negActive=false; }
+    const boost = (i>0 && INTENSIFIERS.has(words[i-1])) ? 1.6 : 1.0;
+    if(POSITIVE.has(w)){ negActive ? neg+=boost : pos+=boost; }
+    else if(NEGATIVE.has(w)){ negActive ? pos+=boost : neg+=boost; }
+  });
+  const excl = Math.min((text.split('!').length-1)/total*10, 1.0);
+  const caps = text.split('').filter(c=>c>='A'&&c<='Z').length / Math.max(text.length,1);
+  return {
+    pos: Math.min((pos/total)*10*3.0, 10.0),
+    neg: Math.min((neg/total)*10*3.0, 10.0),
+    punct: Math.min((excl+caps)*5, 10.0),
+    words: total
+  };
+}
+
+// Triangular MF
+function trimf(x, a, b, c){
+  if(x<=a||x>=c) return 0;
+  if(x<=b) return (x-a)/(b-a);
+  return (c-x)/(c-b);
+}
+
+// Mamdani inference (simplified)
+function mamdaniInfer(ps, ns, pu){
+  // Fuzzify inputs
+  const pos = { low:trimf(ps,0,0,4), med:trimf(ps,2,5,8), high:trimf(ps,6,10,10) };
+  const neg = { low:trimf(ns,0,0,4), med:trimf(ns,2,5,8), high:trimf(ns,6,10,10) };
+  const pct = { low:trimf(pu,0,0,5), high:trimf(pu,4,10,10) };
+
+  // Rule activations
+  const acts = {
+    very_positive: Math.max(
+      Math.min(pos.high, neg.low),
+      Math.min(pos.high, neg.low, pct.high)
+    ),
+    positive: Math.max(
+      Math.min(pos.high, neg.med),
+      Math.min(pos.med, neg.low),
+      Math.min(pos.med, neg.low, pct.high)
+    ),
+    neutral: Math.max(
+      Math.min(pos.med, neg.med),
+      Math.min(pos.low, neg.low),
+      Math.min(pos.low, neg.low, pct.low),
+      Math.min(pos.high, neg.high)
+    ),
+    negative: Math.max(
+      Math.min(neg.high, pos.med),
+      Math.min(neg.med, pos.low),
+      Math.min(pos.low, neg.med),
+      Math.min(pos.med, neg.high)
+    ),
+    very_negative: Math.max(
+      Math.min(neg.high, pos.low),
+      Math.min(neg.high, pct.high)
+    )
+  };
+
+  // Defuzzify (centroid) over [0,100]
+  let num=0, den=0;
+  const MF_DEFS = {
+    very_negative:[0,0,20], negative:[10,25,40],
+    neutral:[30,50,70], positive:[60,75,90], very_positive:[80,100,100]
+  };
+  for(let x=0;x<=100;x+=0.5){
+    let agg=0;
+    for(const [name,abc] of Object.entries(MF_DEFS)){
+      const mu = Math.min(acts[name], trimf(x,abc[0],abc[1],abc[2]));
+      agg = Math.max(agg, mu);
+    }
+    num += x*agg; den += agg;
+  }
+  const score = den===0 ? 50 : Math.max(0,Math.min(100, num/den));
+
+  // Membership degrees of output
+  const memberships = {};
+  for(const [name,abc] of Object.entries(MF_DEFS)){
+    memberships[name] = trimf(score,abc[0],abc[1],abc[2]);
+  }
+  return { score, memberships };
+}
+
+function getLabel(score){
+  if(score>=80) return ['Very Positive','😄','#22c55e','#14532d'];
+  if(score>=60) return ['Positive','🙂','#86efac','#166534'];
+  if(score>=40) return ['Neutral','😐','#facc15','#713f12'];
+  if(score>=20) return ['Negative','😟','#f97316','#7c2d12'];
+  return ['Very Negative','😠','#ef4444','#450a0a'];
+}
+
+// ── PIPELINE ANIMATION ────────────────────────────────────────
+async function animatePipeline(){
+  const nodes=['p0','p1','p2','p3','p4','p5','p6'];
+  for(let i=0;i<nodes.length;i++){
+    if(i>0) document.getElementById(nodes[i-1]).classList.remove('active');
+    document.getElementById(nodes[i]).classList.add('active');
+    await new Promise(r=>setTimeout(r,200));
+  }
+  document.getElementById(nodes[nodes.length-1]).classList.remove('active');
+}
+
+// ── MAIN ANALYZE FUNCTION ─────────────────────────────────────
+async function analyzeText(){
+  const text = document.getElementById('reviewInput').value.trim();
+  if(!text){ showToast('⚠️ Please enter some text first.'); return; }
+
+  const btn = document.getElementById('analyzeBtn');
+  btn.textContent='⏳ Computing...'; btn.classList.add('loading');
+  document.getElementById('result-empty').style.display='none';
+  document.getElementById('result-content').style.display='none';
+
+  animatePipeline();
+  await new Promise(r=>setTimeout(r,1500));
+
+  const features = extractFeatures(text);
+  const {score, memberships} = mamdaniInfer(features.pos, features.neg, features.punct);
+  const [label, emoji, color, bgColor] = getLabel(score);
+
+  // Render result
+  document.getElementById('scoreNum').textContent = score.toFixed(1);
+  document.getElementById('scoreNum').style.color = color;
+  document.getElementById('scoreEmoji').textContent = emoji;
+  const labelEl = document.getElementById('scoreLabel');
+  labelEl.textContent = label;
+  labelEl.style.background = bgColor;
+  labelEl.style.color = color;
+  document.getElementById('scoreBar').style.width = score+'%';
+  document.getElementById('scoreBar').style.background = color;
+
+  // Feature bars
+  const featData = [
+    {name:'Positive',val:features.pos,color:'#4ade80'},
+    {name:'Negative',val:features.neg,color:'#f87171'},
+    {name:'Punct.',val:features.punct,color:'#facc15'},
+  ];
+  document.getElementById('featRow').innerHTML = featData.map(f=>`
+    <div class="feat-card">
+      <div class="feat-val" style="color:${f.color};">${f.val.toFixed(2)}</div>
+      <div class="feat-lbl">${f.name}</div>
+      <div class="feat-bar-bg"><div class="feat-bar-fill" style="width:${f.val/10*100}%;background:${f.color};"></div></div>
+      <div style="font-size:.65rem;color:var(--muted);margin-top:.3rem;">/ 10</div>
+    </div>`).join('');
+
+  // Membership degrees
+  const memOrder = [
+    ['very_negative','Very Negative','#ef4444'],
+    ['negative','Negative','#f97316'],
+    ['neutral','Neutral','#facc15'],
+    ['positive','Positive','#86efac'],
+    ['very_positive','Very Positive','#22c55e'],
+  ];
+  document.getElementById('memberships').innerHTML = memOrder.map(([k,n,c])=>`
+    <div class="mem-row">
+      <div class="mem-header"><span>${n}</span><span style="color:${c};font-weight:700;">${memberships[k].toFixed(3)}</span></div>
+      <div class="mem-bar-bg"><div class="mem-bar" style="width:${memberships[k]*100}%;background:${c};"></div></div>
+    </div>`).join('');
+
+  document.getElementById('result-content').style.display='block';
+  btn.textContent='⚡ Run Fuzzy Inference'; btn.classList.remove('loading');
+  showToast(`✅ ${emoji} ${label} — Score: ${score.toFixed(1)}`);
+}
+
+// ── TOAST ─────────────────────────────────────────────────────
+function showToast(msg){
+  const t=document.getElementById('toast'); t.textContent=msg;
+  t.classList.add('show'); setTimeout(()=>t.classList.remove('show'),3000);
+}
+
+// ── MF CHARTS (Canvas) ────────────────────────────────────────
+function drawMF(canvasId, mfGroups, xLabel, xMax){
+  const canvas=document.getElementById(canvasId);
+  if(!canvas) return;
+  const ctx=canvas.getContext('2d');
+  const W=canvas.offsetWidth||400; const H=canvas.height||140;
+  canvas.width=W; canvas.height=H;
+  const PAD={l:35,r:15,t:15,b:30};
+  const PW=W-PAD.l-PAD.r; const PH=H-PAD.t-PAD.b;
+  ctx.fillStyle='#1e293b'; ctx.fillRect(0,0,W,H);
+  // Grid
+  ctx.strokeStyle='rgba(51,65,85,.5)'; ctx.lineWidth=1;
+  for(let i=0;i<=4;i++){
+    const y=PAD.t+i*PH/4;
+    ctx.beginPath(); ctx.moveTo(PAD.l,y); ctx.lineTo(PAD.l+PW,y); ctx.stroke();
+  }
+  // Axes
+  ctx.strokeStyle='#334155'; ctx.lineWidth=1.5;
+  ctx.beginPath(); ctx.moveTo(PAD.l,PAD.t); ctx.lineTo(PAD.l,PAD.t+PH); ctx.lineTo(PAD.l+PW,PAD.t+PH); ctx.stroke();
+  // Labels
+  ctx.fillStyle='#94a3b8'; ctx.font='9px Inter';
+  ctx.textAlign='center';
+  for(let v=0;v<=xMax;v+=xMax/4){
+    const x=PAD.l+(v/xMax)*PW;
+    ctx.fillText(v,x,PAD.t+PH+18);
+  }
+  ctx.textAlign='right';
+  ['0','0.5','1'].forEach((v,i)=>{
+    const y=PAD.t+PH-(i*PH/2);
+    ctx.fillText(v,PAD.l-4,y+4);
+  });
+  // Draw each MF
+  mfGroups.forEach(({color,params})=>{
+    const [a,b,c]=params;
+    ctx.strokeStyle=color; ctx.lineWidth=2.5;
+    ctx.fillStyle=color+'25';
+    ctx.beginPath();
+    ctx.moveTo(PAD.l+(a/xMax)*PW, PAD.t+PH);
+    ctx.lineTo(PAD.l+(b/xMax)*PW, PAD.t);
+    ctx.lineTo(PAD.l+(c/xMax)*PW, PAD.t+PH);
+    ctx.stroke();
+    ctx.beginPath();
+    ctx.moveTo(PAD.l+(a/xMax)*PW, PAD.t+PH);
+    ctx.lineTo(PAD.l+(b/xMax)*PW, PAD.t);
+    ctx.lineTo(PAD.l+(c/xMax)*PW, PAD.t+PH);
+    ctx.closePath(); ctx.fill();
+  });
+}
+
+function drawAllMFs(){
+  drawMF('mfPos',[
+    {color:'#f87171',params:[0,0,4]},
+    {color:'#facc15',params:[2,5,8]},
+    {color:'#4ade80',params:[6,10,10]},
+  ],'Score',10);
+  drawMF('mfNeg',[
+    {color:'#f87171',params:[0,0,4]},
+    {color:'#facc15',params:[2,5,8]},
+    {color:'#4ade80',params:[6,10,10]},
+  ],'Score',10);
+  drawMF('mfPunct',[
+    {color:'#f87171',params:[0,0,5]},
+    {color:'#4ade80',params:[4,10,10]},
+  ],'Score',10);
+  drawMF('mfSent',[
+    {color:'#ef4444',params:[0,0,20]},
+    {color:'#f97316',params:[10,25,40]},
+    {color:'#facc15',params:[30,50,70]},
+    {color:'#86efac',params:[60,75,90]},
+    {color:'#22c55e',params:[80,100,100]},
+  ],'Sentiment',100);
+}
+
+// ── INIT ──────────────────────────────────────────────────────
+window.addEventListener('load',()=>{
+  drawAllMFs();
+  // Auto-analyze on load
+  setTimeout(analyzeText, 300);
+});
+window.addEventListener('resize', drawAllMFs);
+
+// Enter key support
+document.addEventListener('DOMContentLoaded',()=>{
+  document.getElementById('reviewInput').addEventListener('keydown',e=>{
+    if(e.key==='Enter' && e.ctrlKey) analyzeText();
+  });
+});
+</script>
+</body>
+</html>
